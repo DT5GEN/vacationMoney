@@ -30,6 +30,9 @@ public class MainActivity extends AppCompatActivity {
     // Инициализируем экземпляр API
     private VacationApi vacationApi;
 
+    // Хранение выбранных дат
+    private Pair<Long, Long> selectedDates;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,7 +58,6 @@ public class MainActivity extends AppCompatActivity {
         calculateButton.setOnClickListener(v -> calculateVacationPay());
     }
 
-
     private void showDatePicker() {
         // Получаем текущее время
         Calendar calendar = Calendar.getInstance();
@@ -78,24 +80,28 @@ public class MainActivity extends AppCompatActivity {
         CalendarConstraints.Builder constraintsBuilder = new CalendarConstraints.Builder();
         constraintsBuilder.setStart(startDate);
         constraintsBuilder.setEnd(endDate);
-        // Убираем DateValidatorPointForward.now(), чтобы разрешить выбор дат в прошлом
-        // constraintsBuilder.setValidator(DateValidatorPointForward.now());
 
         // Создание Date Range Picker
         MaterialDatePicker.Builder<Pair<Long, Long>> builder = MaterialDatePicker.Builder.dateRangePicker();
         builder.setTitleText("Выберите период");
         builder.setCalendarConstraints(constraintsBuilder.build());
-        MaterialDatePicker<?> datePicker = builder.build();
+        MaterialDatePicker<Pair<Long, Long>> datePicker = builder.build();
 
         // Обработка выбранных дат
         datePicker.addOnPositiveButtonClickListener(selection -> {
+            selectedDates = selection;
             resultMoneyTextView.setText(datePicker.getHeaderText());
+
+            // Если зарплата уже введена, делаем пересчет отпускных
+            String salaryStr = salaryInput.getText().toString();
+            if (!salaryStr.isEmpty()) {
+                calculateVacationPay();
+            }
         });
 
         // Показываем DatePicker
         datePicker.show(getSupportFragmentManager(), datePicker.toString());
     }
-
 
     // Метод для расчета отпускных
     private void calculateVacationPay() {
@@ -105,8 +111,12 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        if (selectedDates == null) {
+            resultMoneyTextView.setText("Выберите период!");
+            return;
+        }
         double averageSalary = Double.parseDouble(salaryStr);
-        int vacationDays = 14; // Можно добавить выбор дней отпуска через календарь
+        int vacationDays = getSelectedVacationDays(); // Получаем количество дней из выбранных дат
 
         // Отправляем запрос к API
         Call<Double> call = vacationApi.calculateVacationPay(averageSalary, vacationDays);
@@ -128,6 +138,14 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // Метод для получения количества дней между выбранными датами
+    private int getSelectedVacationDays() {
+        if (selectedDates != null) {
+            long startMillis = selectedDates.first;
+            long endMillis = selectedDates.second;
+            int days = (int) ((endMillis - startMillis) / (1000 * 60 * 60 * 24)) + 1; // Включаем последний день
+            return days;
+        }
+        return 0;
+    }
 }
-
-
