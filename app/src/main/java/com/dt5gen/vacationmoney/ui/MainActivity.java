@@ -10,30 +10,27 @@ import androidx.core.util.Pair;
 
 import com.dt5gen.vacationmoney.R;
 import com.dt5gen.vacationmoney.api.VacationApi;
+import com.dt5gen.vacationmoney.utils.DateRangeHelper;
 import com.dt5gen.vacationmoney.utils.HolidayChecker;
+import com.dt5gen.vacationmoney.utils.VacationCalculator;
 import com.google.android.material.datepicker.CalendarConstraints;
 import com.google.android.material.datepicker.MaterialDatePicker;
 
-import java.sql.Date;
 import java.util.Calendar;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String KEY_SELECTED_DATES = "selected_dates";
+
     private TextView resultMoneyTextView;
     private EditText salaryInput;
     private Button calculateButton;
-
-    // Инициализируем экземпляр API
-    private VacationApi vacationApi;
-
-    // Хранение выбранных дат
+    private TextView selectedDatesTextView;  // TextView для отображения выбранных дат
     private Pair<Long, Long> selectedDates;
+    private VacationCalculator vacationCalculator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,82 +41,90 @@ public class MainActivity extends AppCompatActivity {
         salaryInput = findViewById(R.id.salaryInput);
         calculateButton = findViewById(R.id.calculateButton);
         Button datePickerButton = findViewById(R.id.datePickerButton);
+        selectedDatesTextView = findViewById(R.id.resultMoneyTextView); // Текстовое поле для отображения выбранных дат
 
-        // Настройка кнопки выбора дат
-        datePickerButton.setOnClickListener(v -> showDatePicker());
-
-        // Настройка Retrofit
+        // Настройка API и Calculator
         Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("http://10.0.2.2:8080/")  // check, что сервер работает на этом адресе
+                .baseUrl("http://10.0.2.2:8080/")  // Убедись, что сервер работает на этом адресе
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
-        vacationApi = retrofit.create(VacationApi.class);
+        VacationApi vacationApi = retrofit.create(VacationApi.class);
+        vacationCalculator = new VacationCalculator(vacationApi);
+
+        // Восстановление состояния, если оно было сохранено
+        if (savedInstanceState != null) {
+            selectedDates = savedInstanceState.getParcelable(KEY_SELECTED_DATES);
+            if (selectedDates != null) {
+                // Обновляем TextView с выбранными датами
+                updateSelectedDatesText();
+            }
+        }
+
+        // Настройка кнопки выбора дат
+        datePickerButton.setOnClickListener(v -> showDatePicker());
 
         // Добавляем обработку кнопки расчета
         calculateButton.setOnClickListener(v -> calculateVacationPay());
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
 
-        // Сохраняем выбранные даты
-        if (selectedDates != null) {
-            outState.putLong("startDate", selectedDates.first);
-            outState.putLong("endDate", selectedDates.second);
+        // Восстанавливаем среднюю зарплату
+        if (savedInstanceState != null) {
+            String savedSalary = savedInstanceState.getString("salaryInput");
+            if (savedSalary != null) {
+                salaryInput.setText(savedSalary);
+            }
+
+            // Восстанавливаем выбранные даты
+            if (savedInstanceState.containsKey("startDate") && savedInstanceState.containsKey("endDate")) {
+                long startDate = savedInstanceState.getLong("startDate");
+                long endDate = savedInstanceState.getLong("endDate");
+                selectedDates = new Pair<>(startDate, endDate);
+
+                // Обновляем отображение выбранных дат
+                updateSelectedDatesText();
+            }
+
+            // Восстанавливаем рассчитанную сумму отпускных
+            String calculatedResult = savedInstanceState.getString("calculatedResult");
+            if (calculatedResult != null && calculatedResult.startsWith("Отпускные:")) {
+                resultMoneyTextView.setText(calculatedResult);
+            }
         }
-
-        // Сохраняем введённую зарплату
-        outState.putString("salaryInput", salaryInput.getText().toString());
     }
 
     private void showDatePicker() {
-        // Получаем текущее время
         Calendar calendar = Calendar.getInstance();
-
-        // Устанавливаем диапазон от 3 лет назад до 2 лет вперед
         long today = calendar.getTimeInMillis();
 
-        // 3 года назад
         calendar.add(Calendar.YEAR, -3);
         long startDate = calendar.getTimeInMillis();
 
-        // Возвращаем текущее время
         calendar.setTimeInMillis(today);
-
-        // 2 года вперед
         calendar.add(Calendar.YEAR, 2);
         long endDate = calendar.getTimeInMillis();
 
-        // Настройка ограничения для календаря (от 3 лет назад до 2 лет вперёд)
         CalendarConstraints.Builder constraintsBuilder = new CalendarConstraints.Builder();
         constraintsBuilder.setStart(startDate);
         constraintsBuilder.setEnd(endDate);
 
-        // Создание Date Range Picker
         MaterialDatePicker.Builder<Pair<Long, Long>> builder = MaterialDatePicker.Builder.dateRangePicker();
         builder.setTitleText("Выберите период");
         builder.setCalendarConstraints(constraintsBuilder.build());
-        MaterialDatePicker<Pair<Long, Long>> datePicker = builder.build();
+        MaterialDatePicker<?> datePicker = builder.build();
 
-        // Обработка выбранных дат
         datePicker.addOnPositiveButtonClickListener(selection -> {
-            selectedDates = selection;
-            resultMoneyTextView.setText(datePicker.getHeaderText());
-
-            // Если зарплата уже введена, делаем пересчет отпускных
-            String salaryStr = salaryInput.getText().toString();
-            if (!salaryStr.isEmpty()) {
-                calculateVacationPay();
-            }
+            selectedDates = (Pair<Long, Long>) selection;
+            updateSelectedDatesText();  // Обновляем TextView с выбранными датами
         });
 
-        // Показываем DatePicker
         datePicker.show(getSupportFragmentManager(), datePicker.toString());
     }
 
-    // Метод для расчета отпускных
     private void calculateVacationPay() {
         String salaryStr = salaryInput.getText().toString();
         if (salaryStr.isEmpty()) {
@@ -133,65 +138,51 @@ public class MainActivity extends AppCompatActivity {
         }
 
         double averageSalary = Double.parseDouble(salaryStr);
-        int vacationDays = getSelectedVacationDays(); // Получаем количество дней из выбранных дат
+        int vacationDays = DateRangeHelper.getSelectedVacationDays(selectedDates);
 
         // Учитываем праздничные дни
         HolidayChecker holidayChecker = new HolidayChecker();
-        int holidayCount = holidayChecker.countHolidaysInRange(new Date(selectedDates.first), new Date(selectedDates.second));
+        int holidayCount = holidayChecker.countHolidaysInRange(selectedDates.first, selectedDates.second);
 
-        // Вычитаем количество праздничных дней
         vacationDays -= holidayCount;
-
-        // Отправляем запрос к API с учетом вычета праздничных дней
-        Call<Double> call = vacationApi.calculateVacationPay(averageSalary, vacationDays);
-        call.enqueue(new Callback<Double>() {
+        vacationCalculator.calculateVacationPay(averageSalary, vacationDays, new VacationCalculator.VacationCalculationCallback() {
             @Override
-            public void onResponse(Call<Double> call, Response<Double> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    double vacationPay = response.body();
-                    resultMoneyTextView.setText("Отпускные: " + String.format("%.2f у.е.", vacationPay));
-                } else {
-                    resultMoneyTextView.setText("Ошибка расчета");
-                }
+            public void onSuccess(double vacationPay) {
+                resultMoneyTextView.setText("Отпускные: " + String.format("%.2f у.е.", vacationPay));
             }
 
             @Override
-            public void onFailure(Call<Double> call, Throwable t) {
-                resultMoneyTextView.setText("Ошибка сети: " + t.getMessage());
+            public void onError(String errorMessage) {
+                resultMoneyTextView.setText(errorMessage);
             }
         });
     }
 
-    // Метод для получения количества дней между выбранными датами
-    private int getSelectedVacationDays() {
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        // Сохраняем среднюю зарплату
+        outState.putString("salaryInput", salaryInput.getText().toString());
+
+        // Сохраняем выбранные даты (преобразуем их в long)
         if (selectedDates != null) {
-            long startMillis = selectedDates.first;
-            long endMillis = selectedDates.second;
-            int days = (int) ((endMillis - startMillis) / (1000 * 60 * 60 * 24)) + 1; // Включаем последний день
-            return days;
+            outState.putLong("startDate", selectedDates.first);
+            outState.putLong("endDate", selectedDates.second);
         }
-        return 0;
+
+        // Сохраняем рассчитанную сумму отпускных
+        String resultText = resultMoneyTextView.getText().toString();
+        outState.putString("calculatedResult", resultText);
     }
 
-    @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
 
-        // Восстанавливаем выбранные даты
-        if (savedInstanceState != null) {
-            long startDate = savedInstanceState.getLong("startDate");
-            long endDate = savedInstanceState.getLong("endDate");
-
-            if (startDate != 0 && endDate != 0) {
-                selectedDates = new Pair<>(startDate, endDate);
-                resultMoneyTextView.setText("Выбранный период: " + new Date(startDate) + " - " + new Date(endDate));
-            }
-
-            // Восстанавливаем введённую зарплату
-            String savedSalary = savedInstanceState.getString("salaryInput");
-            if (savedSalary != null) {
-                salaryInput.setText(savedSalary);
-            }
+    // Метод для обновления TextView с выбранными датами
+    private void updateSelectedDatesText() {
+        if (selectedDates != null && !resultMoneyTextView.getText().toString().startsWith("Отпускные:")) {
+            String selectedDatesStr = "Выбрано с " + DateRangeHelper.formatDate(selectedDates.first)
+                    + " по " + DateRangeHelper.formatDate(selectedDates.second);
+            resultMoneyTextView.setText(selectedDatesStr);
         }
     }
 }

@@ -37,16 +37,6 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent" />
 
-<!--    &lt;!&ndash; Текст для отображения результата &ndash;&gt;-->
-<!--    <TextView-->
-<!--        android:id="@+id/resultTextView"-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:text="Выберите период"-->
-<!--        android:textSize="18sp"-->
-<!--        app:layout_constraintBottom_toTopOf="@+id/datePickerButton"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintStart_toStartOf="parent" />-->
 
     <!-- Кнопка для выбора даты -->
     <Button

@@ -117,13 +117,19 @@ public class HolidayChecker {
         return false;
     }
 
+
     // Метод для подсчета праздничных дней в диапазоне
-    public int countHolidaysInRange(Date startDate, Date endDate) {
+    public int countHolidaysInRange(Long startDateMillis, Long endDateMillis) {
         int holidayCount = 0;
+
+        // Преобразуем Long в Date
+        Date startDate = new Date(startDateMillis);
+        Date endDate = new Date(endDateMillis);
+
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(startDate);
 
-        while (calendar.getTime().before(endDate) || calendar.getTime().equals(endDate)) {
+        while (!calendar.getTime().after(endDate)) {
             if (isHoliday(calendar.getTime())) {
                 holidayCount++;
             }
