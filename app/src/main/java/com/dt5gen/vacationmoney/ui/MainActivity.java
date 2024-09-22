@@ -10,9 +10,11 @@ import androidx.core.util.Pair;
 
 import com.dt5gen.vacationmoney.R;
 import com.dt5gen.vacationmoney.api.VacationApi;
+import com.dt5gen.vacationmoney.utils.HolidayChecker;
 import com.google.android.material.datepicker.CalendarConstraints;
 import com.google.android.material.datepicker.MaterialDatePicker;
 
+import java.sql.Date;
 import java.util.Calendar;
 
 import retrofit2.Call;
@@ -115,10 +117,18 @@ public class MainActivity extends AppCompatActivity {
             resultMoneyTextView.setText("Выберите период!");
             return;
         }
+
         double averageSalary = Double.parseDouble(salaryStr);
         int vacationDays = getSelectedVacationDays(); // Получаем количество дней из выбранных дат
 
-        // Отправляем запрос к API
+        // Учитываем праздничные дни
+        HolidayChecker holidayChecker = new HolidayChecker();
+        int holidayCount = holidayChecker.countHolidaysInRange(new Date(selectedDates.first), new Date(selectedDates.second));
+
+        // Вычитаем количество праздничных дней
+        vacationDays -= holidayCount;
+
+        // Отправляем запрос к API с учетом вычета праздничных дней
         Call<Double> call = vacationApi.calculateVacationPay(averageSalary, vacationDays);
         call.enqueue(new Callback<Double>() {
             @Override
