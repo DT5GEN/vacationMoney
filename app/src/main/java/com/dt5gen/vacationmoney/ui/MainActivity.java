@@ -60,6 +60,20 @@ public class MainActivity extends AppCompatActivity {
         calculateButton.setOnClickListener(v -> calculateVacationPay());
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        // Сохраняем выбранные даты
+        if (selectedDates != null) {
+            outState.putLong("startDate", selectedDates.first);
+            outState.putLong("endDate", selectedDates.second);
+        }
+
+        // Сохраняем введённую зарплату
+        outState.putString("salaryInput", salaryInput.getText().toString());
+    }
+
     private void showDatePicker() {
         // Получаем текущее время
         Calendar calendar = Calendar.getInstance();
@@ -157,5 +171,27 @@ public class MainActivity extends AppCompatActivity {
             return days;
         }
         return 0;
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+
+        // Восстанавливаем выбранные даты
+        if (savedInstanceState != null) {
+            long startDate = savedInstanceState.getLong("startDate");
+            long endDate = savedInstanceState.getLong("endDate");
+
+            if (startDate != 0 && endDate != 0) {
+                selectedDates = new Pair<>(startDate, endDate);
+                resultMoneyTextView.setText("Выбранный период: " + new Date(startDate) + " - " + new Date(endDate));
+            }
+
+            // Восстанавливаем введённую зарплату
+            String savedSalary = savedInstanceState.getString("salaryInput");
+            if (savedSalary != null) {
+                salaryInput.setText(savedSalary);
+            }
+        }
     }
 }
