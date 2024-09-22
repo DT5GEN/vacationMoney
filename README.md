@@ -55,7 +55,7 @@ git clone https://github.com/DT5GEN/vacationMoney.git
 
 ### Screenshots
 
-![Main screen](scrsht1.jpg)       ![Choose date](scrsht2.jpg)      ![result](scrsht3.jpg)
+![Main screen](scrsht1.webp)       ![Choose date](scrsht2.webp)      ![result](scrsht3.webp)
 
 
 ### Future Enhancements
