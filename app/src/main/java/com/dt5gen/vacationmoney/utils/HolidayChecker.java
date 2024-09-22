@@ -94,7 +94,7 @@ public class HolidayChecker {
 
 
     // Метод для добавления праздничных дней
-    private void addHoliday(String dateString) {
+    public void addHoliday(String dateString) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         try {
             Date holiday = sdf.parse(dateString);

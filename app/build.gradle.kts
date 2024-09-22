@@ -39,7 +39,9 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
+    implementation(libs.mockito.core)
+    testImplementation (libs.robolectric)
     testImplementation(libs.junit)
-
+    testImplementation(libs.mockwebserver)
     androidTestImplementation(libs.ext.junit)
 }

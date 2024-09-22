@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText salaryInput;
     private Button calculateButton;
     private TextView selectedDatesTextView;  // TextView для отображения выбранных дат
-    private Pair<Long, Long> selectedDates;
+    public Pair<Long, Long> selectedDates;
     private VacationCalculator vacationCalculator;
 
     @Override
